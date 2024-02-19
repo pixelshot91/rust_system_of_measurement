@@ -2,53 +2,106 @@
 
 use std::{
     fmt::Debug,
-    ops::{Add, Mul},
+    ops::{Add, Div, Mul, Sub},
 };
 // #[derive(Debug)]
 #[derive(Clone, Copy)]
-struct Length<const D: i32> {
+pub struct Unit<const T: i32, const L: i32, const M: i32> {
     value: f64,
 }
 
-fn distance(v: f64) -> Length<1> {
-    Length::<1> { value: v }
+pub fn unitless(v: f64) -> Unit<0, 0, 0> {
+    Unit::<0, 0, 0> { value: v }
+}
+pub fn second(v: f64) -> Unit<1, 0, 0> {
+    Unit::<1, 0, 0> { value: v }
+}
+pub fn meter(v: f64) -> Unit<0, 1, 0> {
+    Unit::<0, 1, 0> { value: v }
+}
+pub fn kg(v: f64) -> Unit<0, 1, 0> {
+    Unit::<0, 1, 0> { value: v }
 }
 
-impl<const D: i32> Debug for Length<D> {
+impl From<f64> for Unit<0,0,0> {
+    fn from(value: f64) -> Self {
+        unitless(value)
+    }
+}
+
+impl<const T: i32, const L: i32, const M: i32> Debug for Unit<T, L, M> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Length")
-            .field("D", &D)
+        f.debug_struct("Unit")
+            .field("T", &T)
+            .field("L", &L)
+            .field("M", &M)
             .field("value", &self.value)
             .finish()
     }
 }
 
-impl<const D: i32> Add<Length<D>> for Length<D> {
-    type Output = Length<D>;
+impl<const T: i32, const L: i32, const M: i32> Add<Unit<T, L, M>> for Unit<T, L, M> {
+    type Output = Unit<T, L, M>;
 
-    fn add(self, rhs: Length<D>) -> Self::Output {
+    fn add(self, rhs: Self::Output) -> Self::Output {
         Self::Output {
             value: self.value + rhs.value,
         }
     }
 }
 
-impl<const D1: i32, const D2: i32> Mul<Length<D2>> for Length<D1>
-where
-    Length<{ D1 + D1 }>: Sized,
-{
-    type Output = Length<{ D1 + D1 }>;
+impl<const T: i32, const L: i32, const M: i32> Sub<Unit<T, L, M>> for Unit<T, L, M> {
+    type Output = Unit<T, L, M>;
 
-    fn mul(self, rhs: Length<D2>) -> Self::Output {
+    fn sub(self, rhs: Self::Output) -> Self::Output {
+        Self::Output {
+            value: self.value + rhs.value,
+        }
+    }
+}
+
+impl<const T1: i32, const L1: i32, const M1: i32, const T2: i32, const L2: i32, const M2: i32>
+    Mul<Unit<T2, L2, M2>> for Unit<T1, L1, M1>
+where
+    Unit<{ T1 + T2 }, { L1 + L2 }, { M1 + M2 }>: Sized,
+{
+    type Output = Unit<{ T1 + T2 }, { L1 + L2 }, { M1 + M2 }>;
+
+    fn mul(self, rhs: Unit<T2, L2, M2>) -> Self::Output {
         Self::Output {
             value: self.value * rhs.value,
         }
     }
 }
 
+impl<const T1: i32, const L1: i32, const M1: i32, const T2: i32, const L2: i32, const M2: i32>
+    Div<Unit<T2, L2, M2>> for Unit<T1, L1, M1>
+where
+    Unit<{ T1 - T2 }, { L1 - L2 }, { M1 - M2 }>: Sized,
+{
+    type Output = Unit<{ T1 - T2 }, { L1 - L2 }, { M1 - M2 }>;
+
+    fn div(self, rhs: Unit<T2, L2, M2>) -> Self::Output {
+        Self::Output {
+            value: self.value / rhs.value,
+        }
+    }
+}
+
+impl Unit<-1, 1, 0> {
+    pub fn m_s(&self) -> f64 {
+        self.value
+    }
+
+    pub fn km_h(&self) -> f64 {
+        self.value / 1000.0 * 3600.0
+    }
+}
+
 fn main() {
-    let d1 = distance(4.0);
-    let d2 = distance(3.0);
+    let t1 = second(2.0);
+    let d1 = meter(4.0);
+    let d2 = meter(3.0);
 
     let total_distance = d1 + d2;
 
@@ -57,49 +110,20 @@ fn main() {
     let area = d1 * d2;
     dbg!(area);
 
-
-    let volume = area * distance(5.0);
+    let volume = area * meter(5.0);
     dbg!(volume);
-}
 
-mod first {
-    use std::ops::Add;
+    let speed = d1 / t1;
+    dbg!(speed);
 
-    #[derive(Debug)]
-    struct Distance {
-        meter: f64,
-    }
+    dbg!(speed.m_s());
+    dbg!(speed.km_h());
 
-    impl Distance {
-        const METERS_IN_MILES: f64 = 1609.0;
+    dbg!(speed / 3.0.into());
 
-        fn meter(meter: f64) -> Distance {
-            Distance { meter }
-        }
+    let freq = unitless(1.0) / t1;
+    dbg!(freq);
 
-        fn mile(mile: f64) -> Distance {
-            Distance {
-                meter: mile * Self::METERS_IN_MILES,
-            }
-        }
-    }
-
-    impl Add for Distance {
-        type Output = Distance;
-
-        fn add(self, rhs: Self) -> Self::Output {
-            Distance {
-                meter: self.meter + rhs.meter,
-            }
-        }
-    }
-
-    fn main() {
-        let d1 = Distance::meter(4.0);
-        let d2 = Distance::mile(2.0);
-
-        let total = d1 + d2;
-
-        dbg!(total);
-    }
+    let speed_2 = d2 * freq;
+    dbg!(speed_2);
 }
