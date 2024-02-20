@@ -5,21 +5,21 @@
 #![feature(const_trait_impl)]
 #![feature(effects)]
 #![feature(const_option)]
+#![feature(const_refs_to_cell)]
 
 mod fraction;
 mod zero;
 
 use std::{
-    fmt::Debug,
-    fmt::Display,
-    ops::{Add, Mul, Sub},
+    fmt::{Debug, Display},
+    ops::{Add, Div, Mul, Sub},
 };
 
 const SECONDS_IN_MINUTE: u32 = 60;
 
 use fraction::Fraction;
 // #[derive(Debug)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Unit<const T: Fraction, const L: Fraction, const M: Fraction> {
     value: f64,
 }
@@ -34,11 +34,14 @@ type Speed = Unit<{ Fraction::MINUS_ONE }, { Fraction::ONE }, { Fraction::ZERO }
 pub fn unitless(v: f64) -> Unit<{ Fraction::ZERO }, { Fraction::ZERO }, { Fraction::ZERO }> {
     Unit::<{ Fraction::ZERO }, { Fraction::ZERO }, { Fraction::ZERO }> { value: v }
 }
-pub fn second(v: f64) -> Unit<{ Fraction::ONE }, { Fraction::ZERO }, { Fraction::ZERO }> {
-    Unit::<{ Fraction::ONE }, { Fraction::ZERO }, { Fraction::ZERO }> { value: v }
+pub fn second(v: f64) -> Duration {
+    Duration { value: v }
 }
-pub fn meter(v: f64) -> Unit<{ Fraction::ZERO }, { Fraction::ONE }, { Fraction::ZERO }> {
-    Unit::<{ Fraction::ZERO }, { Fraction::ONE }, { Fraction::ZERO }> { value: v }
+pub fn meter(v: f64) -> Length {
+    Length { value: v }
+}
+pub fn meter_square(v: f64) -> Area {
+    Area { value: v }
 }
 pub fn kg(v: f64) -> Unit<{ Fraction::ZERO }, { Fraction::ZERO }, { Fraction::ONE }> {
     Unit::<{ Fraction::ZERO }, { Fraction::ZERO }, { Fraction::ONE }> { value: v }
@@ -101,26 +104,31 @@ where
     }
 }
 
-// impl<const T1: Fraction, const L1: Fraction, const M1: Fraction, const T2: Fraction, const L2: Fraction, const M2: Fraction>
-//     Div<Unit<T2, L2, M2>> for Unit<T1, L1, M1>
-// where
-//     Unit<{ T1 - T2 }, { L1 - L2 }, { M1 - M2 }>: Sized,
-// {
-//     type Output = Unit<{ T1 - T2 }, { L1 - L2 }, { M1 - M2 }>;
+impl<
+        const T1: Fraction,
+        const L1: Fraction,
+        const M1: Fraction,
+        const T2: Fraction,
+        const L2: Fraction,
+        const M2: Fraction,
+    > Div<Unit<T2, L2, M2>> for Unit<T1, L1, M1>
+where
+    Unit<{ T1.const_sub(T2) }, { L1.const_sub(L2) }, { M1.const_sub(M2) }>: Sized,
+{
+    type Output = Unit<{ T1.const_sub(T2) }, { L1.const_sub(L2) }, { M1.const_sub(M2) }>;
 
-//     fn div(self, rhs: Unit<T2, L2, M2>) -> Self::Output {
-//         Self::Output {
-//             value: self.value / rhs.value,
-//         }
-//     }
-// }
+    fn div(self, rhs: Unit<T2, L2, M2>) -> Self::Output {
+        Self::Output {
+            value: self.value / rhs.value,
+        }
+    }
+}
 
 impl<const T: Fraction, const L: Fraction, const M: Fraction> Unit<T, L, M>
 where
     Unit<{ T.const_div(2) }, { L.const_div(2) }, { M.const_div(2) }>: Sized,
 {
     pub type SqrtOutput = Unit<{ T.const_div(2) }, { L.const_div(2) }, { M.const_div(2) }>;
-    // type Outpsut = Unit<{T.const_div(2.0)}, L, M>;
 
     pub fn sqrt(&self) -> Self::SqrtOutput {
         Self::SqrtOutput {
@@ -135,11 +143,16 @@ impl Duration {
     }
 }
 
-impl Display for Length {
+impl<const T: Fraction, const L: Fraction, const M: Fraction> Display for Unit<T, L, M> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} m", self.value)
+        if T == Fraction::ZERO && L == Fraction::ONE && M == Fraction::ZERO {
+            write!(f, "{} m", &self.value)
+        } else {
+            write!(f, "{} s^({}) m^({}) kg^({})", &self.value, T, L, M)
+        }
     }
 }
+
 impl Length {
     pub fn m(&self) -> f64 {
         self.value
@@ -167,7 +180,7 @@ impl Speed {
 }
 
 fn main() {
-    let t1 = second(2.0);
+    let t1 = second(120.0);
     println!("t1 in minutes = {}", t1.minute());
 
     let d1 = meter(4.0);
@@ -175,36 +188,33 @@ fn main() {
 
     let total_distance = d1 + d2;
     println!("total_distance = {}", total_distance);
-    // assert_eq!(total_distance, meter(7.0));
+    assert_eq!(total_distance, meter(7.0));
 
     let area = d1 * d2;
-    dbg!(area);
-    area.m2();
+    assert_eq!(area.value, 12.0);
+    assert_eq!(area, meter_square(12.0));
 
     let volume = area * meter(5.0);
-    dbg!(volume);
+    assert_eq!(volume.value, 60.0);
 
     let sqrt_d1 = d1.sqrt();
-    dbg!(sqrt_d1);
+    println!("sqrt_d1 = {}", &sqrt_d1);
     let sqrt_d2 = d2.sqrt();
-    dbg!(sqrt_d2);
+    println!("sqrt_d2 = {}", &sqrt_d2);
 
     let sqrt_mul = sqrt_d1 * sqrt_d2;
-    dbg!(sqrt_mul);
+    println!("sqrt_mul = {}", &sqrt_mul);
+    println!("sqrt_mul in km = {}", &sqrt_mul.km());
 
-    sqrt_mul.km();
-
-    /* let speed = d1 / t1;
+    let speed = meter(10.0) / second(1.0);
     dbg!(speed);
 
     dbg!(speed.m_s());
     dbg!(speed.km_h());
 
-    dbg!(speed / 3.0.into()); */
+    let freq = unitless(1.0) / t1;
+    dbg!(freq);
 
-    // let freq = unitless(1.0) / t1;
-    // dbg!(freq);
-
-    // let speed_2 = d2 * freq;
-    // dbg!(speed_2);
+    let speed_2 = d2 * freq;
+    dbg!(speed_2);
 }
