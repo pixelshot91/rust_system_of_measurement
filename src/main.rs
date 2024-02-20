@@ -17,22 +17,24 @@ use std::{
 
 const SECONDS_IN_MINUTE: u32 = 60;
 
-use fraction::Fraction;
-// #[derive(Debug)]
+use fraction::{Fraction, MINUS_ONE, ONE, THREE, TWO, ZERO};
+
 #[derive(Clone, Copy, PartialEq)]
 pub struct Unit<const T: Fraction, const L: Fraction, const M: Fraction> {
     value: f64,
 }
 
-type Duration = Unit<{ Fraction::ONE }, { Fraction::ZERO }, { Fraction::ZERO }>;
+type Duration = Unit<{ ONE }, { ZERO }, { ZERO }>;
 
-type Length = Unit<{ Fraction::ZERO }, { Fraction::ONE }, { Fraction::ZERO }>;
-type Area = Unit<{ Fraction::ZERO }, { Fraction::TWO }, { Fraction::ZERO }>;
+type Length = Unit<{ ZERO }, { ONE }, { ZERO }>;
+type Area = Unit<{ ZERO }, { TWO }, { ZERO }>;
 
-type Speed = Unit<{ Fraction::MINUS_ONE }, { Fraction::ONE }, { Fraction::ZERO }>;
+type Mass = Unit<{ ZERO }, { ZERO }, { ONE }>;
 
-pub fn unitless(v: f64) -> Unit<{ Fraction::ZERO }, { Fraction::ZERO }, { Fraction::ZERO }> {
-    Unit::<{ Fraction::ZERO }, { Fraction::ZERO }, { Fraction::ZERO }> { value: v }
+type Speed = Unit<{ MINUS_ONE }, { ONE }, { ZERO }>;
+
+pub fn unitless(v: f64) -> Unit<{ ZERO }, { ZERO }, { ZERO }> {
+    Unit::<{ ZERO }, { ZERO }, { ZERO }> { value: v }
 }
 pub fn second(v: f64) -> Duration {
     Duration { value: v }
@@ -43,11 +45,11 @@ pub fn meter(v: f64) -> Length {
 pub fn meter_square(v: f64) -> Area {
     Area { value: v }
 }
-pub fn kg(v: f64) -> Unit<{ Fraction::ZERO }, { Fraction::ZERO }, { Fraction::ONE }> {
-    Unit::<{ Fraction::ZERO }, { Fraction::ZERO }, { Fraction::ONE }> { value: v }
+pub fn kg(v: f64) -> Mass {
+    Mass { value: v }
 }
 
-impl From<f64> for Unit<{ Fraction::ZERO }, { Fraction::ZERO }, { Fraction::ZERO }> {
+impl From<f64> for Unit<{ ZERO }, { ZERO }, { ZERO }> {
     fn from(value: f64) -> Self {
         unitless(value)
     }
@@ -145,10 +147,20 @@ impl Duration {
 
 impl<const T: Fraction, const L: Fraction, const M: Fraction> Display for Unit<T, L, M> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if T == Fraction::ZERO && L == Fraction::ONE && M == Fraction::ZERO {
-            write!(f, "{} m", &self.value)
-        } else {
-            write!(f, "{} s^({}) m^({}) kg^({})", &self.value, T, L, M)
+        // It would be nice to not repeat the definition of the common unit
+        match (T, L, M) {
+            (ZERO, ZERO, ZERO) => write!(f, "{}", self.value),
+
+            (ONE, ZERO, ZERO) => write!(f, "{} s", self.value),
+            (MINUS_ONE, ZERO, ZERO) => write!(f, "{} Hz", self.value),
+
+            (ZERO, ONE, ZERO) => write!(f, "{} m", self.value),
+            (ZERO, TWO, ZERO) => write!(f, "{} m²", self.value),
+            (ZERO, THREE, ZERO) => write!(f, "{} m^3", self.value),
+
+            (MINUS_ONE, ONE, ZERO) => write!(f, "{} m/s", self.value),
+
+            (_, _, _) => write!(f, "{} s^({}) m^({}) kg^({})", &self.value, T, L, M),
         }
     }
 }
@@ -195,6 +207,7 @@ fn main() {
     assert_eq!(area, meter_square(12.0));
 
     let volume = area * meter(5.0);
+    println!("volume = {}", volume);
     assert_eq!(volume.value, 60.0);
 
     let sqrt_d1 = d1.sqrt();
@@ -203,18 +216,17 @@ fn main() {
     println!("sqrt_d2 = {}", &sqrt_d2);
 
     let sqrt_mul = sqrt_d1 * sqrt_d2;
+    assert_eq!(sqrt_d1.to_string(), "2 s^(0) m^(1 / 2) kg^(0)");
     println!("sqrt_mul = {}", &sqrt_mul);
     println!("sqrt_mul in km = {}", &sqrt_mul.km());
 
     let speed = meter(10.0) / second(1.0);
-    dbg!(speed);
-
-    dbg!(speed.m_s());
-    dbg!(speed.km_h());
+    println!("speed = {}", speed);
+    println!("speed in km/h = {}", speed.km_h());
 
     let freq = unitless(1.0) / t1;
-    dbg!(freq);
+    println!("freq = {}", freq);
 
     let speed_2 = d2 * freq;
-    dbg!(speed_2);
+    println!("speed_2 = {}", speed_2);
 }

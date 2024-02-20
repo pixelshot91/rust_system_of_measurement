@@ -10,28 +10,37 @@ pub struct Fraction {
 
 impl Display for Fraction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} / {}", self.numerator, self.denominator)
+        if self.denominator == 1 {
+            write!(f, "{}", self.numerator)
+        } else {
+            write!(f, "{} / {}", self.numerator, self.denominator)
+        }
     }
 }
+pub const ZERO: Fraction = Fraction {
+    numerator: 0,
+    denominator: 1,
+};
+pub const ONE: Fraction = Fraction {
+    numerator: 1,
+    denominator: 1,
+};
 
+pub const TWO: Fraction = Fraction {
+    numerator: 2,
+    denominator: 1,
+};
+pub const THREE: Fraction = Fraction {
+    numerator: 3,
+    denominator: 1,
+};
+
+pub const MINUS_ONE: Fraction = Fraction {
+    numerator: -1,
+    denominator: 1,
+};
 impl Fraction {
-    pub const ZERO: Fraction = Fraction {
-        numerator: 0,
-        denominator: 1,
-    };
-    pub const ONE: Fraction = Fraction {
-        numerator: 1,
-        denominator: 1,
-    };
-
-    pub const TWO: Fraction = Fraction {
-        numerator: 2,
-        denominator: 1,
-    };
-    pub const MINUS_ONE: Fraction = Fraction {
-        numerator: -1,
-        denominator: 1,
-    };
+   
     const fn new(numerator: i32, denominator: u32) -> Fraction {
         let gcd = gcd(numerator as u32, denominator);
 
